@@ -1,0 +1,170 @@
+
+space is the physical array of bits needed to store a value
+a point is 
+a graph is any complex relation of points
+
+
+
+Program
+	|	Point-List
+	
+
+Point-List
+	|	Point
+	|	Point  Point-List
+
+
+Point
+	|	Graph
+	|	->  Graph
+	|	Key-List
+	|	Key-List  Graph
+
+
+Key-List
+	|	Key  Key-List
+
+
+Key
+	|	Key-As-Such
+	|	Label:  Space
+	|	Label:
+
+
+Key-As-Such
+	|	Label;
+
+
+
+// Space must be constant sized, thus any refs must point to constant graphs that return and integer, for now I will only allow integers
+// also confusing, because last Space in chain, [10][10][Point], is used to imply struct
+Space-List
+	|	Base
+	|	Size Space-List
+
+
+Size
+	|	[  INTEGER	]
+	|	[  INTEGER-REF	]		// requires evaluation to validate
+
+
+Base
+	|	[  BASE-TYPE  ]
+	|	[  Label  ]				// implies struct memory packing
+
+
+BASE-TYPE
+	|	f32,  f64
+	|	u1
+	|  i8 .. i128
+	|  u8 .. u128
+	|	utf8						// Synonym for u32
+	|	string					// Synonym for utf8
+	|	ascii						// Synonym for u8
+	|	bool 						// Synonym for u1 
+
+
+
+Graph
+	|  Pattern-Graph
+
+
+Pattern-Graph
+	|  Pattern  ~  OR-Graph
+
+
+OR-Graph
+	|  AND-Graph
+	|	OR-Graph  |  AND-Graph
+
+
+AND-Graph
+	|	Equality-Graph
+	|	AND-Graph  &  Equality-Graph
+
+
+Equality-Graph
+	|	Relational-Graph
+	|	Equality-Graph  [== !=]  Relational-Graph
+	
+
+Relational-Graph
+	|	Add-Graph
+	|	Relational-Graph  [> < >= <=]  Add-Graph
+	
+
+Add-Graph
+	|	Mul-Graph
+	|	Add-Graph  [+ -]  Mul-Graph
+	
+
+Mul-Graph
+	|	Exp-Graph
+	|	Mul-Graph  [* /]  Exp-Graph
+
+
+Exp-Graph
+	|	Unary-Graph
+	|	Mul-Graph  [^]  Unary-Graph
+	
+
+Unary-Graph
+	|	Replicate-Select-Graph
+	|	[+ - ! #]  Unary-Graph
+	
+
+
+Select-Graph
+	|	Member
+	|	Member  .  Select-Graph
+	|	Member  .  Selector
+
+
+Selector
+	// return element
+	|	INTEGER					// select single by integer index	base.10
+	|	( Graph )				// select single by index				base.(10)
+
+	// return collection
+	|	Graph-Literal			// select multiple by index			base.{1,2}
+	|	[ Ref-List ]			// select multiple by label			base.[jef, bob]
+
+
+Member
+	|	Primary-Graph
+	|	Ref Graph-Literal
+
+
+Ref
+	|	LABEL
+
+
+Graph-Literal:
+	|	{  Point-List  }
+
+
+Ref-List:
+	|	Ref
+	|	Ref  Ref-List
+
+
+Primary-Graph:
+	|	Ref
+	|	Literal
+	|	Paren-Graph
+
+
+Literal
+	|	Number-Literal
+	|	String-Literal
+	
+
+String-Literal
+	|	STRING
+	
+
+Number-Literal
+	|	BOOLEAN
+	|	INTEGER
+	|	DECIMAL
+

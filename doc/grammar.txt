@@ -1,0 +1,170 @@
+
+space is the physical array of bits needed to store a value
+a point is 
+a graph is any complex relation of points
+
+
+
+Graph
+	|	Pattern-Graph
+	|	Graph  :  Pattern-Graph
+	|	Label  ;											// label as such
+
+
+Pattern-Graph
+	|	Value
+	|  Label  ~  Pattern
+
+
+Pattern
+	|	Select-Graph
+
+
+
+
+
+
+
+
+
+
+
+Program
+	|	Point-List
+	
+
+Point-List
+	|	Point
+	|	Point , Point-List
+
+
+Point
+	|	OR-Exp
+	|	->  OR-Exp
+	|	LABEL  ;											// label as such. x;
+	|	LABEL  Space									// x []
+	|	LABEL  Space : OR-Exp						// x [] : value
+	|	LABEL  :  Point								// x: y: z: 
+
+
+
+Space
+	|	[  Space-List  ]
+
+
+Space-List
+	|	Base
+	|	Size  Space-List
+
+	
+Size
+	|	INTEGER
+	|	INTEGER-REF		// requires evaluation to validate
+
+
+Base
+	|	BASE-TYPE
+	|	Label					// implies struct memory packing
+
+
+BASE-TYPE
+	|	f32,  f64
+	|	u1
+	|  i8 .. i128
+	|  u8 .. u128
+	|	utf8						// Synonym for u32
+	|	string					// Synonym for utf8
+	|	ascii						// Synonym for u8
+	|	bool 						// Synonym for u1 
+
+
+OR-Exp
+	|  AND-Exp
+	|	OR-Exp  |  AND-Exp
+
+
+AND-Exp
+	|	Equality-Exp
+	|	AND-Exp  &  Equality-Exp
+
+
+Equality-Exp
+	|	Relational-Exp
+	|	Equality-Exp  [== !=]  Relational-Exp
+	
+
+Relational-Exp
+	|	Add-Exp
+	|	Relational-Exp  [> < >= <=]  Add-Exp
+	
+
+Add-Exp
+	|	Mul-Exp
+	|	Add-Exp  [+ -]  Mul-Exp
+	
+
+Mul-Exp
+	|	Exp-Exp
+	|	Mul-Exp  [* /]  Exp-Exp
+
+
+Exp-Exp
+	|	Range-Exp
+	|	Exp-Exp  ^  Range-Exp
+	
+
+Range-Exp
+	|	Unary-Exp
+	|	Unary-Exp  ..  Unary-Exp
+	
+
+Unary-Exp
+	|	Replicate-Select-Exp
+	|	[+ - ! # ..]  Unary-Exp
+	
+
+
+Select-Exp
+	|	Primary
+	|	Primary  .  Primary
+
+
+Apply
+	|	Primary
+	|	Primary Apply
+
+
+Ref
+	|	LABEL
+
+
+Graph-Exp:
+	|	{  Point-List  }
+
+
+Ref-List:
+	|	Ref
+	|	Ref , Ref-List
+
+
+Primary:
+	|	Ref
+	|	Graph-Exp
+	|	Paren-Exp
+	|	Literal
+
+
+Literal
+	|	Number-Literal
+	|	String-Literal
+	
+
+String-Literal
+	|	STRING
+	
+
+Number-Literal
+	|	BOOLEAN
+	|	INTEGER
+	|	DECIMAL
+
