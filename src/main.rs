@@ -2,7 +2,7 @@ use std::env;
 use std::fs;
 
 pub mod compiler;
-use compiler::{parser, tokenizer};
+use compiler::{normalize, parser, reducer, tokenizer};
 use parser::Ast;
 use tokenizer::Token;
 
@@ -20,8 +20,7 @@ fn main() {
     // read_file(&args[0]); // first run
     // compiler(&args[0], &args[1]);
     let source = &args[0];
-    let target = &args[0];
-    event_router(notify::op::WRITE, source, target);
+    event_router(notify::op::WRITE, source);
 
     std::process::exit(0);
 
@@ -52,29 +51,46 @@ fn main() {
     // }
 }
 
-fn event_router(operation: notify::Op, source: &String, target: &String) {
+fn event_router(operation: notify::Op, source: &String) {
     match operation {
         notify::op::WRITE => {
-            let input = read_file(source);
-            let tokens = tokenizer::tokenizer(&input);
-            let token_path = &mut target.clone();
-            token_path.push_str(&".tokens".to_string());
-            write_file(token_path, &token_string(&tokens));
-            //
-            //
-            let parse_path = &mut target.clone();
-            parse_path.push_str(&".ast".to_string());
-            match parser::parser(&tokens) {
-                Ok(parse) => {
-                    write_file(parse_path, &ast_string(&parse.ast));
-                }
-                Err(msg) => {
-                    write_file(parse_path, &msg);
-                }
-            }
+            let msg = match compile(source) {
+                Ok(msg) => msg,
+                Err(msg) => msg,
+            };
+            let error_path = &mut source.clone();
+            error_path.push_str(&".errors".to_string());
+            write_file(error_path, &msg);
         }
         _ => {}
     };
+}
+
+fn compile(source: &String) -> Result<String, String> {
+    let input = read_file(source);
+    //
+    //
+    let tokens = tokenizer::tokenizer(&input)?;
+    let token_path = &mut source.clone();
+    token_path.push_str(&".tokens".to_string());
+    write_file(token_path, &token_string(&tokens));
+    //
+    //
+    let parse = parser::parser(&tokens)?;
+    let parse_path = &mut source.clone();
+    parse_path.push_str(&".ast".to_string());
+    write_file(parse_path, &ast_string(&parse));
+
+    //
+    //
+    dbg!();
+    let normal = normalize::normalize(&parse)?;
+    dbg!(&normal);
+    let normal_path = &mut source.clone();
+    normal_path.push_str(&".normal".to_string());
+    write_file(normal_path, &ast_string(&normal));
+
+    Ok("no errors".to_string())
 }
 
 fn read_file(path: &String) -> String {

@@ -1,8 +1,17 @@
 
-// a: b: c: 10 & 9 + 2 * 2 | 20 ^ - 2 | #30
-	// d: a: b ^ 2 - 4 * a * c
 
-	// b: b ^ 2 - 4 * a * c
+// a: 12 ![i32]
+
+a: 12
+// a: [i32]! 12
+// a: signal ? [i32]! 23
+// a: signal ? 23 ![i32]
+// a: [i32]! signal ? 23
+
+// a: b: c: 10 & 9 + 2 * 2 | 20 ^ - 2 | #30
+// d: a: b ^ 2 - 4 * a * c
+
+// b: b ^ 2 - 4 * a * c
 // a {}, arg . b
 
 // tom: bob: hello, bob . jeff
@@ -11,13 +20,65 @@
 // 	a: 10 b: 20
 // 	c: 30}
 
-quadratic: {
-	a: b: c [f64]
+// symbols: { :a, :b, :c }
 
-	discriminant: b^2 - 4*a*c
-	rooted: Sqrt { discriminant }
-	denominator: 2*a
+// signal ? boolean: `a & b | a & `b | `c
 
-	positive: (-b + rooted) / denominator
-	negative: (-b - rooted) / denominator
-}
+// bob: {
+// 	a: 0
+// 	b: [i32]
+// -> a + b
+// }
+
+// + : {
+// 	a: 10
+// 	b: 20	+ : 10
+// }
+// +: 10
+// quadratic: {
+// 	signal ? a: b: c: [10,f64]
+
+// 	discriminant: b^2 - 4*a*c
+// 	rooted: Sqrt { discriminant }
+// 	denominator: 2*a
+
+// 	positive: (-b + rooted) / denominator
+// 	negative: (-b - rooted) / denominator
+// }
+
+// (quadratic: {
+// 	(? signal (a: (b: (c: [10 f64]))))
+
+// 	(discriminant: (- (^ b 2) (* 4 a c)))
+// 	(rooted: (Sqrt{ discriminant }))
+// 	(denominator: (* 2 a))
+
+// 	(positive: (/ (+ (-b) rooted) denominator))
+// 	(negative: (/ (- (-b) rooted) denominator))
+
+// 	(-> {positive negative})
+// })
+
+// Math: {
+// 	Point: {a: i32, b: i32}
+// 	point: {
+// 		(+): { a: b: Point -> Point{a.a + a.b, b.a + b.b} }
+// 		(-): { a: b: Point -> Point{a.a - a.b, b.a - b.b} }
+// 		(*): { a: b: Point -> Point{a.a * a.b, b.a * b.b} }
+// 		(/): { a: b: Point -> Point{a.a / a.b, b.a / b.b} }
+// 	}
+
+// 	Vec'3: {x: y: z: 0}
+// 	vec'3: {
+// 		add: { a: b: Vec'3 -> a + b }
+// 		sub: { a: b: Vec'3 -> a - b }
+// 		mul: { a: b: Vec'3 -> a * b }
+// 		div: { a: b: Vec'3 -> a / b }
+// 	}
+// }
+
+// a: b [u64] ~ Point {x,y} : operation
+
+// a: b [u64]
+
+// set: { red; orange; yellow; green; red; blue; }

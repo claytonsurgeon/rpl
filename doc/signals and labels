@@ -1,0 +1,8 @@
+
+
+labels can stack to avoid repetition
+
+a: [i32], b: [i32], c: [i32]
+
+becomes
+a: b: c: [i32]

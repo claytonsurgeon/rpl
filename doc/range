@@ -1,0 +1,7 @@
+
+
+
+array#[> 10]		every index greater than 10
+array#[< 10]		every index less than 10
+array#[10 < 20]		range
+array#[10 < i < 20]	labeled range

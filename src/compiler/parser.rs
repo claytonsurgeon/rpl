@@ -1,59 +1,7 @@
+// tokens -> ast-vector -> btree-graph
+
 use super::tokenizer::{Kind, Name, Token};
 use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
-
-// pub struct Map<'a> {
-// 	pub parent: Option<&'a HashMap<String, (&'a Typ, &'a Ast)>>,
-// 	pub this: HashMap<String, (&'a Typ, &'a Ast)>,
-// }
-
-pub struct Map<'a> {
-	pub parent: Option<&'a HashMap<String, Rc<Box<Ast>>>>,
-	pub this: HashMap<String, Rc<Box<Ast>>>,
-}
-
-#[derive(Debug, Clone)]
-pub enum Format {
-	// ie how are the bytes formatted, what standard
-	Integer,
-	Decimal,
-	Boolean,
-
-	// ints
-	I8,
-	I16,
-	I32,
-	I64,
-	I128,
-
-	// uints
-	U8,
-	U16,
-	U32,
-	U64,
-	U128,
-
-	// floats
-	F32,
-	F64,
-	F128,
-
-	// char
-	C8, // UTF-8, but only chars of 8 bits like ascii
-	C16,
-	C32, // Full UTF-8
-}
-
-#[derive(Debug, Clone)]
-pub enum Typ {
-	Number(Format),
-	String(Format),
-
-	Thing,           // placeholder
-	Graph(Vec<Typ>), // a graph that is packed into a single array space, a struct
-	Array(Box<Typ>), // packed array of things
-}
 
 #[derive(Debug, Clone)]
 pub enum Ast {
@@ -63,136 +11,162 @@ pub enum Ast {
 	Decimal(String),
 	String(String),
 
-	Graph(Vec<Ast>),
-	Point(String, Typ, u16, bool, Box<Ast>), // Type, Label, Index, isReturn, Value
+	Graph(Vec<Ast>), // { .. }
+	Space(Vec<Ast>), // [ .. ]
 
-	Apply(Box<Ast>, Box<Ast>),
-	Op2(Name, Box<Ast>, Box<Ast>),
-	Op1(Name, Box<Ast>),
+	Apply(Box<Ast>, Box<Ast>), //	graph { .. }
 
-	Ref(String),
+	Word(String),                  // graph
+	Op2(Name, Box<Ast>, Box<Ast>), // 1 + 2
+	Op1(Name, Box<Ast>),           // - 10
+	Op0(Name),                     // i32
 }
-
-pub struct Parse<'a> {
-	pub ast: Ast,
-	pub map: Map<'a>,
-	pub typ: Typ,
-}
-
 pub struct Tokens<'a> {
 	cursor: RefCell<usize>,
 	tokens: &'a Vec<Token>,
 }
 
-pub fn parser(tokens: &Vec<Token>) -> Result<Parse, String> {
+type Rast = Result<Ast, String>;
+type Rasts = Result<Vec<Ast>, String>;
+
+pub fn parser(tokens: &Vec<Token>) -> Rast {
 	let cursor = Tokens {
 		cursor: RefCell::new(0),
 		tokens,
 	};
 
-	let mut map = Map {
-		parent: None,
-		this: HashMap::new(),
-	};
-
-	let ast = cursor.program()?;
-	// let typ = walk(ast, &mut map);
-	let typ = Typ::Thing;
-
-	Ok(Parse { ast, map, typ })
-	// Err("".to_string())
+	cursor.program()
 }
 
 impl Tokens<'_> {
-	fn program(&self) -> Result<Ast, String> {
-		let ast = self.point_list(&[])?;
-
-		Ok(Ast::Point(
-			"Program".to_string(),
-			Typ::Thing,
-			0,
-			false,
-			Box::new(ast),
-		))
+	fn program(&self) -> Rast {
+		Ok(Ast::Graph(self.points(&[])?))
 	}
 
-	fn point_list(&self, stops: &[Name]) -> Result<Ast, String> {
+	fn points(&self, stops: &[Name]) -> Rasts {
 		let mut points: Vec<Ast> = vec![];
 		self.clear_stops();
-		let mut index = 0;
 		while self.until(0, stops) {
-			points.push(self.point(&mut index)?);
-			// if !self.any(0, stops) {
-			// self.eat_of(Kind::Stop)?;
-			// }
+			points.push(self.return_exp()?);
 			self.clear_stops();
 		}
 
-		Ok(Ast::Graph(points))
+		Ok(points)
 	}
 
-	fn point(&self, shared_index: &mut u16) -> Result<Ast, String> {
-		let point: Ast;
-		let space: Typ;
-		let label: String;
-		let index = *shared_index;
-		let graph: Ast;
-
-		*shared_index += 1;
-		if *shared_index > 10 {
-			panic!()
+	fn return_exp(&self) -> Rast {
+		if self.is(0, Name::Arrow) {
+			return Ok(Ast::Op1(Name::Arrow, Box::new(self.pattern_exp()?)));
+		}
+		let mut left = self.pattern_exp()?;
+		if self.is(0, Name::Arrow) {
+			self.eat(Name::Arrow)?;
+			left = Ast::Op2(
+				Name::Arrow,
+				Box::new(left),
+				Box::new(self.pattern_exp()?),
+			);
 		}
 
-		if self.is(0, Name::Label)
-			&& self.any(1, &[Name::SquarenLF, Name::Colon, Name::Semicolon])
+		Ok(left)
+	}
+
+	fn pattern_exp(&self) -> Rast {
+		let mut left = self.label_exp()?;
+		while self.is(0, Name::Pattern) {
+			self.eat(Name::Pattern)?;
+			left = Ast::Op2(
+				Name::Pattern,
+				Box::new(left),
+				Box::new(self.label_exp()?),
+			);
+		}
+
+		Ok(left)
+	}
+
+	// parsing labels as an expression is probably a mistake. There are just to many edge cases and unintuative behavior, may be better to treat labels and return-arrows as punctuation
+	fn label_exp(&self) -> Rast {
+		// should be made to work with parens around operator like (+): {..}
+		if self.any_of(0, &[Kind::Word, Kind::Operator])
+			&& self.is(1, Name::Label)
 		{
-			label = self.eat(Name::Label)?.meta.text.clone();
-			if self.is(0, Name::SquarenLF) {
-				space = self.space()?;
-				graph = if self.is(0, Name::Colon) {
-					self.eat(Name::Colon)?;
-					self.or_exp()?
-				} else {
-					Ast::Nothing
-				}
-			} else if self.is(0, Name::Semicolon) {
-				// label;
-				self.eat(Name::Semicolon)?;
-				space = Typ::Thing;
-				graph = Ast::Nothing;
-			} else {
-				// label : value
-				space = Typ::Thing;
-				self.eat(Name::Colon)?;
-				graph = if self.is(0, Name::Label)
-					&& self.any(1, &[Name::Colon, Name::Semicolon])
-				{
-					self.point(shared_index)?
-				} else {
-					self.or_exp()?
-				}
-			}
-		} else {
-			space = Typ::Thing;
-			label = String::new();
-			graph = self.or_exp()?;
+			let label = self
+				.eats_of(&[Kind::Word, Kind::Operator])?
+				.meta
+				.text
+				.clone();
+			self.eat(Name::Label)?;
+			return Ok(Ast::Op2(
+				Name::Label,
+				Box::new(Ast::Word(label)),
+				Box::new(self.label_exp()?),
+			));
+		}
+		self.sizer_exp()
+	}
+
+	fn sizer_exp(&self) -> Rast {
+		let mut left = self.signal_exp()?;
+		while self.is(0, Name::Sizer) {
+			self.eat(Name::Sizer)?;
+			left = Ast::Op2(
+				Name::Sizer,
+				Box::new(left),
+				Box::new(self.signal_exp()?),
+			);
 		}
 
-		point = Ast::Point(label, space, index, false, Box::new(graph));
-
-		Ok(point)
-	}
-	fn space(&self) -> Result<Typ, String> {
-		dbg!();
-		self.eat(Name::SquarenLF)?;
-		Ok(Typ::Thing)
+		Ok(left)
 	}
 
-	// fn space_list(&self) -> Result<
+	// I don't know if it's better to have signal be the same precendance as sizers or not
 
-	fn or_exp(&self) -> Result<Ast, String> {
+	fn signal_exp(&self) -> Rast {
+		let mut left = self.join_exp()?;
+		while self.is(0, Name::Signal) {
+			self.eat(Name::Signal)?;
+			left = Ast::Op2(
+				Name::Signal,
+				Box::new(left),
+				Box::new(self.join_exp()?),
+			);
+		}
+
+		Ok(left)
+	}
+
+	fn join_exp(&self) -> Rast {
+		let mut left = self.shape_exp()?;
+		while self.is(0, Name::Bleed) && !self.is(1, Name::Label) {
+			self.eat(Name::Bleed)?;
+			left = Ast::Op2(
+				Name::Bleed,
+				Box::new(left),
+				Box::new(self.shape_exp()?),
+			);
+		}
+
+		Ok(left)
+	}
+
+	fn shape_exp(&self) -> Rast {
+		let mut left = self.or_exp()?;
+		while self.is(0, Name::Shape) && !self.is(1, Name::Label) {
+			self.eat(Name::Shape)?;
+			left = Ast::Op2(
+				Name::Shape,
+				Box::new(left),
+				Box::new(self.or_exp()?),
+			);
+		}
+
+		Ok(left)
+	}
+
+	fn or_exp(&self) -> Rast {
 		let mut left = self.and_exp()?;
-		while self.is(0, Name::Or) {
+		while self.is(0, Name::Or) && !self.is(1, Name::Label) {
 			self.eat(Name::Or)?;
 			left =
 				Ast::Op2(Name::Or, Box::new(left), Box::new(self.and_exp()?));
@@ -201,9 +175,9 @@ impl Tokens<'_> {
 		Ok(left)
 	}
 
-	fn and_exp(&self) -> Result<Ast, String> {
+	fn and_exp(&self) -> Rast {
 		let mut left = self.equality_exp()?;
-		while self.is(0, Name::And) {
+		while self.is(0, Name::And) && !self.is(1, Name::Label) {
 			self.eat(Name::And)?;
 			left = Ast::Op2(
 				Name::And,
@@ -215,10 +189,11 @@ impl Tokens<'_> {
 		Ok(left)
 	}
 
-	fn equality_exp(&self) -> Result<Ast, String> {
+	fn equality_exp(&self) -> Rast {
 		let mut left = self.relation_exp()?;
-		while self.any(0, &[Name::Eq, Name::Ne]) {
-			let t = self.eat_of(Kind::Binary)?;
+		while self.any(0, &[Name::Eq, Name::Ne]) && !self.is(1, Name::Label)
+		{
+			let t = self.eat_of(Kind::Operator)?;
 			left = Ast::Op2(
 				t.of.name,
 				Box::new(left),
@@ -229,10 +204,12 @@ impl Tokens<'_> {
 		Ok(left)
 	}
 
-	fn relation_exp(&self) -> Result<Ast, String> {
+	fn relation_exp(&self) -> Rast {
 		let mut left = self.additive_exp()?;
-		while self.any(0, &[Name::Gt, Name::Ge, Name::Lt, Name::Le]) {
-			let t = self.eat_of(Kind::Binary)?;
+		while self.any(0, &[Name::Gt, Name::Ge, Name::Lt, Name::Le])
+			&& !self.is(1, Name::Label)
+		{
+			let t = self.eat_of(Kind::Operator)?;
 			left = Ast::Op2(
 				t.of.name,
 				Box::new(left),
@@ -243,10 +220,12 @@ impl Tokens<'_> {
 		Ok(left)
 	}
 
-	fn additive_exp(&self) -> Result<Ast, String> {
+	fn additive_exp(&self) -> Rast {
 		let mut left = self.multiplicative_exp()?;
-		while self.any(0, &[Name::Add, Name::Sub]) {
-			let t = self.eat_of(Kind::Binary)?;
+		while self.any(0, &[Name::Add, Name::Sub])
+			&& !self.is(1, Name::Label)
+		{
+			let t = self.eat_of(Kind::Operator)?;
 			left = Ast::Op2(
 				t.of.name,
 				Box::new(left),
@@ -257,10 +236,12 @@ impl Tokens<'_> {
 		Ok(left)
 	}
 
-	fn multiplicative_exp(&self) -> Result<Ast, String> {
+	fn multiplicative_exp(&self) -> Rast {
 		let mut left = self.exponential_exp()?;
-		while self.any(0, &[Name::Mul, Name::Div]) {
-			let t = self.eat_of(Kind::Binary).unwrap();
+		while self.any(0, &[Name::Mul, Name::Div])
+			&& !self.is(1, Name::Label)
+		{
+			let t = self.eat_of(Kind::Operator).unwrap();
 			left = Ast::Op2(
 				t.of.name,
 				Box::new(left),
@@ -271,26 +252,12 @@ impl Tokens<'_> {
 		Ok(left)
 	}
 
-	fn exponential_exp(&self) -> Result<Ast, String> {
-		let mut left = self.range_exp()?;
-		while self.is(0, Name::Exp) {
+	fn exponential_exp(&self) -> Rast {
+		let mut left = self.unary_exp()?;
+		while self.is(0, Name::Exp) && !self.is(1, Name::Label) {
 			self.eat(Name::Exp)?;
 			left = Ast::Op2(
 				Name::Exp,
-				Box::new(left),
-				Box::new(self.range_exp()?),
-			);
-		}
-
-		Ok(left)
-	}
-
-	fn range_exp(&self) -> Result<Ast, String> {
-		let mut left = self.unary_exp()?;
-		while self.is(0, Name::Range) {
-			self.eat(Name::Range)?;
-			left = Ast::Op2(
-				Name::Range,
 				Box::new(left),
 				Box::new(self.unary_exp()?),
 			);
@@ -299,44 +266,21 @@ impl Tokens<'_> {
 		Ok(left)
 	}
 
-	fn unary_exp(&self) -> Result<Ast, String> {
-		if self.any(
-			0,
-			&[
-				Name::Add,
-				Name::Sub,
-				Name::Not,
-				Name::Range,
-				Name::Colon,
-				Name::Gt,
-				Name::Lt,
-				Name::Length,
-			],
-		) {
-			let operator = self.eats(&[
-				Name::Add,
-				Name::Sub,
-				Name::Not,
-				Name::Range,
-				Name::Colon,
-				Name::Gt,
-				Name::Lt,
-				Name::Length,
-			])?;
+	fn unary_exp(&self) -> Rast {
+		if self.of(0, Kind::Operator) {
+			let operator = self.eat_of(Kind::Operator)?;
 			Ok(Ast::Op1(operator.of.name, Box::new(self.unary_exp()?)))
 		} else {
 			self.select_exp()
-			// Ok(AST::Nothing)
-			// Ok(self.literal()?)
 		}
 	}
 
-	fn select_exp(&self) -> Result<Ast, String> {
+	fn select_exp(&self) -> Rast {
 		let mut left = self.apply()?;
-		while self.is(0, Name::Select) {
-			self.eat(Name::Select)?;
+		while self.any(0, &[Name::Select, Name::Index]) {
+			let operator = self.eats(&[Name::Select, Name::Index])?;
 			left = Ast::Op2(
-				Name::Select,
+				operator.of.name,
 				Box::new(left),
 				Box::new(self.apply()?),
 			);
@@ -345,45 +289,55 @@ impl Tokens<'_> {
 		Ok(left)
 	}
 
-	fn apply(&self) -> Result<Ast, String> {
+	fn apply(&self) -> Rast {
 		let mut left = self.primary()?;
-		// while self.until_of(0, &[Kind::Stop]) {
-		while self.any(0, &[Name::BracketLF, Name::ParenLF]) {
+		if self.any(0, &[Name::BracketLF, Name::ParenLF]) {
 			left = Ast::Apply(Box::new(left), Box::new(self.primary()?));
 		}
 
 		Ok(left)
 	}
-
-	fn primary(&self) -> Result<Ast, String> {
-		if self.is(0, Name::Label) {
-			self.reference()
+	fn primary(&self) -> Rast {
+		if self.is(0, Name::Word) {
+			self.word()
 		} else if self.of(0, Kind::Bracket) {
 			self.graph_exp()
 		} else if self.of(0, Kind::Paren) {
 			self.paren_exp()
+		} else if self.of(0, Kind::Squaren) {
+			self.space_exp()
 		} else {
 			self.literal()
 		}
 	}
-	fn graph_exp(&self) -> Result<Ast, String> {
+
+	fn graph_exp(&self) -> Rast {
 		self.eat(Name::BracketLF)?;
-		let exp = self.point_list(&[Name::BracketRT]);
+		let points = self.points(&[Name::BracketRT])?;
 		self.eat(Name::BracketRT)?;
-		exp
+		Ok(Ast::Graph(points))
 	}
-	fn paren_exp(&self) -> Result<Ast, String> {
+
+	fn paren_exp(&self) -> Rast {
 		self.eat(Name::ParenLF)?;
 		let exp = self.or_exp();
 		self.eat(Name::ParenRT)?;
 		exp
 	}
-	fn reference(&self) -> Result<Ast, String> {
-		let t = self.eat(Name::Label)?;
-		Ok(Ast::Ref(t.meta.text.clone()))
+
+	fn space_exp(&self) -> Rast {
+		self.eat(Name::SquarenLF)?;
+		let points = self.points(&[Name::SquarenRT])?;
+		self.eat(Name::SquarenRT)?;
+		Ok(Ast::Space(points))
 	}
 
-	fn literal(&self) -> Result<Ast, String> {
+	fn word(&self) -> Rast {
+		let t = self.eat(Name::Word)?;
+		Ok(Ast::Word(t.meta.text.clone()))
+	}
+
+	fn literal(&self) -> Rast {
 		if self.of(0, Kind::String) {
 			self.string()
 		} else {
@@ -391,7 +345,7 @@ impl Tokens<'_> {
 		}
 	}
 
-	fn number(&self) -> Result<Ast, String> {
+	fn number(&self) -> Rast {
 		let t = self.eat_of(Kind::Number)?;
 		let ast = match t.of.name {
 			Name::Decimal => Ast::Decimal(t.meta.text.clone()),
@@ -401,11 +355,13 @@ impl Tokens<'_> {
 		Ok(ast)
 	}
 
-	fn string(&self) -> Result<Ast, String> {
+	fn string(&self) -> Rast {
 		let t = self.eat_of(Kind::String)?;
 		Ok(Ast::String(t.meta.text.clone()))
 	}
 }
+
+//
 
 impl Tokens<'_> {
 	fn eat(&self, name: Name) -> Result<&Token, String> {
@@ -448,8 +404,26 @@ impl Tokens<'_> {
 					Ok(t)
 				} else {
 					Err(format!(
-						"UnexpectedToken: {:?} on line {}\nExpected token of name: {:?}",
-						t.meta.text, t.meta.line, t.of.name
+						"UnexpectedToken: {:?} of {:?}:{:?} on line {}\nExpected tokens of names: {:?}",
+						t.meta.text, t.of.kind, t.of.name, t.meta.line, names
+					))
+				};
+				*self.cursor.borrow_mut() += 1; // must occur after self.any
+				ret
+			}
+			None => Err("UnexpectedEndOfInput".to_string()),
+		}
+	}
+
+	fn eats_of(&self, kinds: &[Kind]) -> Result<&Token, String> {
+		match self.get(0) {
+			Some(t) => {
+				let ret = if self.any_of(0, kinds) {
+					Ok(t)
+				} else {
+					Err(format!(
+						"UnexpectedToken: {:?} of {:?}:{:?} on line {}\nExpected tokens of kinds: {:?}",
+						t.meta.text, t.of.kind, t.of.name, t.meta.line, kinds
 					))
 				};
 				*self.cursor.borrow_mut() += 1; // must occur after self.any
@@ -494,6 +468,14 @@ impl Tokens<'_> {
 		}
 		false
 	}
+	fn any_of(&self, offset: usize, kinds: &[Kind]) -> bool {
+		for kind in kinds {
+			if self.of(offset, *kind) {
+				return true;
+			}
+		}
+		false
+	}
 
 	fn until(&self, offset: usize, stops: &[Name]) -> bool {
 		match self.get(offset) {
@@ -509,7 +491,7 @@ impl Tokens<'_> {
 		}
 	}
 
-	fn until_of(&self, offset: usize, stops: &[Kind]) -> bool {
+	fn _until_of(&self, offset: usize, stops: &[Kind]) -> bool {
 		match self.get(offset) {
 			Some(t) => {
 				for stop in stops {

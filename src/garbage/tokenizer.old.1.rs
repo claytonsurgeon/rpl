@@ -6,9 +6,15 @@ pub enum Kind {
 	Invalid,
 	Skip,
 	Stop,
-	Operator,
 	//
-	Word,
+	// Colon,
+	Binary,
+	Unary,
+	Select,
+	Range,
+	//
+	Label,
+	Reserved,
 	//
 	String,
 	Number,
@@ -21,44 +27,43 @@ pub enum Kind {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Name {
 	Invalid,
-	Skip,      // 	comments, spaces, \r
-	Newline,   //	\n
-	Comma,     //	,
-	Semicolon, //	;
-	//								unadic,				dyadic
-	Pattern, // 	~			n/a					pattern
-	Signal, // 		?			make-signal 		gated-expression					(think !!), 	controls reativity explicitly
-	Sizer,  //		!			capacity				set capacity
-	Label,  // 		:			symbol				label expression
-	Or,     // 		|			bitwise OR			bitwise OR
-	And,    // 		&			bitwise AND			bitwise AND
-	Not, // 			`			bitwise negate		bitmask filter						regular bitwise negate, filter arrays with bitmask
-	Add, // 			+			magnitude			add
-	Sub, // 			-			negate				subtract
-	Mul, // 			*			n/a					multiply
-	Div, // 			/			invert				divide								10 + /10 = 10.1
-	Exp, // 			^			n/a					exponentiate
+	Skip,
+	Newline,
+	Comma,
 	//
-	Eq, // 			=			n/a					bitwise equality
-	Ne, // 			!=			n/a					bitwise inequality
-	Gt, // 			>			inf ascending		greater than 						(>7) => 8,9,10,11,12...
-	Lt, // 			<			iota ascending		less than							(<7) => 0,1,2,3,4,5,6
-	Ge, // 			>=			inf ascending		greater than or equal			(>=7) => 7,8,9,10,11,12...
-	Le, // 			<= 		iota ascending		less than or equal				(<=7) =>0,1,2,3,4,5,6,7
+	Pattern,
 	//
-	Shape, // 		$			get-shape			reshape
-	Index, // 		#			length/tally		select by index					#array = length,	array#[10] = element of array
+	Or,
+	And,
+	Add,
+	Sub,
+	Mul,
+	Div,
+	Exp,
+	Not,
 	//
-	Select, //		.			n/a					select by label
-	Bleed,  //		..			bleed into			join									arraya:{..arrayb},		arraya .. arrayb
+	Eq,
+	Ne,
+	Gt,
+	Lt,
+	Ge,
+	Le,
 	//
-	Arrow, //		->		   return				match return
-
-	Word,
+	Semicolon,
+	Colon,
+	Length,
+	//
+	Select,
+	// Parent, // shouldn't be needed
+	Range,
+	//
+	Key,
+	Ref,
+	Label,
+	Arrow,
 	Reserved,
 	//
 	String,
-	//
 	Integer,
 	Decimal,
 	Boolean,
@@ -88,64 +93,57 @@ pub struct Token {
 	pub meta: Meta,
 }
 
-pub fn tokenizer(input: &String) -> Result<Vec<Token>, String> {
+pub fn tokenizer(input: &String) -> Vec<Token> {
 	lazy_static! {
 		static ref SPEC: Vec<(Kind, Name, Regex)> =
 			vec![
-				// insignificant whitespace
+				(Kind::Stop, Name::Newline, Regex::new(r"^\n").unwrap()),
 				(Kind::Skip, Name::Skip, Regex::new(r"^\r").unwrap()),
+				(Kind::Stop, Name::Comma, Regex::new(r"^,").unwrap()),
 				(Kind::Skip, Name::Skip, Regex::new(r"^[[:blank:]]+").unwrap()),
 
 				// Comments
 				(Kind::Skip, Name::Skip, Regex::new(r"^//.*").unwrap()),
-				// ** messes up line number counting
 				(Kind::Skip, Name::Skip, Regex::new(r"^/\*[\s\S]*?\*/").unwrap()),
 
-				(Kind::Stop, Name::Newline, Regex::new(r"^\n").unwrap()),
-				(Kind::Stop, Name::Comma, Regex::new(r"^,").unwrap()),
-
-				// Words
-				(Kind::Word, Name::Word, Regex::new(r"^[A-Za-z'_][A-Za-z0-9'_]*").unwrap()),
-				// Reserved Words
-				(Kind::Word, Name::Reserved, Regex::new(r"^if\b").unwrap()),
-				(Kind::Word, Name::Reserved, Regex::new(r"^else\b").unwrap()),
+				// Labels
+				(Kind::Label, Name::Label, Regex::new(r"^[A-Za-z'_][A-Za-z0-9'_]*").unwrap()),
+				(Kind::Label, Name::Arrow, Regex::new(r"^(->|→)").unwrap()),
 
 				// Numbers
-				(Kind::Number, Name::Decimal, Regex::new(r"^[0-9]+\.[0-9]*").unwrap()),
-				(Kind::Number, Name::Decimal, Regex::new(r"^[0-9]*\.[0-9]+").unwrap()),
+				(Kind::Binary, Name::Range, Regex::new(r"^\.\.").unwrap()),
+
+				(Kind::Number, Name::Decimal, Regex::new(r"^[0-9']+\.[0-9']+").unwrap()),
 				(Kind::Number, Name::Integer, Regex::new(r"^[0-9']+").unwrap()),
 				(Kind::Number, Name::Boolean, Regex::new(r"^(false|true)\b").unwrap()),
 
+				// Reserved Words
+				(Kind::Reserved, Name::Reserved, Regex::new(r"^if\b").unwrap()),
+				(Kind::Reserved, Name::Reserved, Regex::new(r"^else\b").unwrap()),
+
 				// Operators
-				(Kind::Operator, Name::Semicolon, Regex::new(r"^;").unwrap()),
-				//
-				(Kind::Operator, Name::Arrow, Regex::new(r"^(->|→)").unwrap()),
-				(Kind::Operator, Name::Bleed, Regex::new(r"^\.\.").unwrap()),
-				(Kind::Operator, Name::Select, Regex::new(r"^[.]").unwrap()),
+				(Kind::Binary, Name::Semicolon, Regex::new(r"^;").unwrap()),
+				(Kind::Binary, Name::Colon, Regex::new(r"^:").unwrap()),
+				(Kind::Binary, Name::Pattern, Regex::new(r"^[~]").unwrap()),
+				(Kind::Binary, Name::Or, Regex::new(r"^[|]").unwrap()),
+				(Kind::Binary, Name::And, Regex::new(r"^[&]").unwrap()),
+				(Kind::Binary, Name::Eq, Regex::new(r"^((==)|(=))").unwrap()),
+				(Kind::Binary, Name::Ne, Regex::new(r"^(!=)").unwrap()),
+				(Kind::Binary, Name::Ge, Regex::new(r"^(>=)").unwrap()),
+				(Kind::Binary, Name::Le, Regex::new(r"^(<=)").unwrap()),
+				(Kind::Binary, Name::Gt, Regex::new(r"^(>)").unwrap()),
+				(Kind::Binary, Name::Lt, Regex::new(r"^(<)").unwrap()),
+				(Kind::Binary, Name::Add, Regex::new(r"^(\+)").unwrap()),
+				(Kind::Binary, Name::Sub, Regex::new(r"^(-)").unwrap()),
+				(Kind::Binary, Name::Mul, Regex::new(r"^(\*)").unwrap()),
+				(Kind::Binary, Name::Div, Regex::new(r"^(/)").unwrap()),
+				(Kind::Binary, Name::Exp, Regex::new(r"^(\^)").unwrap()),
 
-				(Kind::Operator, Name::Signal, Regex::new(r"^\?").unwrap()),
-				(Kind::Operator, Name::Label, Regex::new(r"^:").unwrap()),
-				(Kind::Operator, Name::Sizer, Regex::new(r"^!").unwrap()),
-				(Kind::Operator, Name::Shape, Regex::new(r"^$").unwrap()),
-				(Kind::Operator,  Name::Index, Regex::new(r"^#").unwrap()),
-
-				(Kind::Operator, Name::Or, Regex::new(r"^[|]").unwrap()),
-				(Kind::Operator, Name::And, Regex::new(r"^[&]").unwrap()),
-				(Kind::Operator, Name::Not, Regex::new(r"^[`]").unwrap()),
-				(Kind::Operator, Name::Eq, Regex::new(r"^((==)|(=))").unwrap()),
-				(Kind::Operator, Name::Ne, Regex::new(r"^(!=)").unwrap()),
-				(Kind::Operator, Name::Ge, Regex::new(r"^(>=)").unwrap()),
-				(Kind::Operator, Name::Le, Regex::new(r"^(<=)").unwrap()),
-				(Kind::Operator, Name::Gt, Regex::new(r"^(>)").unwrap()),
-				(Kind::Operator, Name::Lt, Regex::new(r"^(<)").unwrap()),
-				(Kind::Operator, Name::Add, Regex::new(r"^(\+)").unwrap()),
-				(Kind::Operator, Name::Sub, Regex::new(r"^(-)").unwrap()),
-				(Kind::Operator, Name::Mul, Regex::new(r"^(\*)").unwrap()),
-				(Kind::Operator, Name::Div, Regex::new(r"^(/)").unwrap()),
-				(Kind::Operator, Name::Exp, Regex::new(r"^(\^)").unwrap()),
+				(Kind::Unary,  Name::Not, Regex::new(r"^(!)").unwrap()),
+				(Kind::Unary,  Name::Length, Regex::new(r"^#").unwrap()),
 
 
-
+				(Kind::Binary, Name::Select, Regex::new(r"^[.]").unwrap()),
 
 
 				// parens
@@ -196,9 +194,7 @@ pub fn tokenizer(input: &String) -> Result<Vec<Token>, String> {
 
 					match (kind, name) {
 						(Kind::Skip, _) => {}
-						//
-						(Kind::Stop, Name::Comma)
-						| (Kind::Stop, Name::Semicolon) => {
+						(Kind::Stop, Name::Comma) => {
 							if last_token_was_newline {
 								tokens.pop();
 							}
@@ -209,7 +205,6 @@ pub fn tokenizer(input: &String) -> Result<Vec<Token>, String> {
 								last_token_was_newline = false;
 							}
 						}
-						//
 						(Kind::Stop, Name::Newline) => {
 							if !last_token_was_operator
 								&& !last_token_was_comma && !last_token_was_newline
@@ -222,7 +217,7 @@ pub fn tokenizer(input: &String) -> Result<Vec<Token>, String> {
 							}
 							line += 1;
 						}
-						//
+
 						(Kind::Paren, Name::ParenLF)
 						| (Kind::Squaren, Name::SquarenLF)
 						| (Kind::Bracket, Name::BracketLF) => {
@@ -231,7 +226,7 @@ pub fn tokenizer(input: &String) -> Result<Vec<Token>, String> {
 							last_token_was_comma = false;
 							last_token_was_newline = false;
 						}
-						//
+
 						(Kind::Paren, Name::ParenRT)
 						| (Kind::Squaren, Name::SquarenRT)
 						| (Kind::Bracket, Name::BracketRT) => {
@@ -243,8 +238,8 @@ pub fn tokenizer(input: &String) -> Result<Vec<Token>, String> {
 							last_token_was_comma = false;
 							last_token_was_newline = false;
 						}
-						//
-						(Kind::Operator, _) => {
+
+						(Kind::Binary, _) | (Kind::Label, Name::Arrow) => {
 							if last_token_was_newline {
 								tokens.pop();
 							}
@@ -253,7 +248,6 @@ pub fn tokenizer(input: &String) -> Result<Vec<Token>, String> {
 							last_token_was_comma = false;
 							last_token_was_newline = false;
 						}
-						//
 						_ => {
 							tokens.push(t);
 
@@ -271,5 +265,5 @@ pub fn tokenizer(input: &String) -> Result<Vec<Token>, String> {
 			}
 		}
 	}
-	Ok(tokens)
+	tokens
 }

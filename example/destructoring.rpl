@@ -1,0 +1,13 @@
+
+
+// without label
+Point {x, y} ~ Point {x: 10, y: 20}
+
+// with label
+Point {x, y} ~ my_point: Point {x: 10, y: 20}
+
+// with spacer
+Point {x, y} ~ Point {x: 10, y: 20} ! [Point]
+
+// with label and space
+Point {x, y} ~ [Point]! my_point: Point {x: 10, y: 20}
