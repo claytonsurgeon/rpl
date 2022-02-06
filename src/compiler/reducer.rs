@@ -1,97 +1,69 @@
 /*
-memory:
-data memory is static in size
-
-the size of a point is the sum of its graph. A graph is a series of connected points
-
-execution memory space is implemetation defined, this may be done via a stack or register machine
-
-a: 10
-
-graph(number(i32), [
-		Op2(number(Integer), Label
-			Word(thing, "a"),
-			Integer(10),
-		)
-])
-
+reduce turn ast to sequences
 
 */
 
+use super::expander::Parse;
 use super::parser::Ast;
-// use super::tokenizer::Name;
 use std::collections::BTreeMap;
 
-pub struct Map<'a> {
-	pub parent: Option<&'a BTreeMap<String, (u64, Ast)>>,
-	pub this: BTreeMap<String, (u64, Ast)>,
+pub fn reducer(
+	ast: &Ast,
+	envs: &Vec<BTreeMap<String, (usize, Ast, Vec<String>)>>,
+) -> Result<Ast, String> {
+	let mut parse = Parse { envs: envs.clone() };
+	parse.reduce(ast, 0)
 }
+// #[derive(Debug, Clone)]
+// pub struct Parse {
+// 	envs: Vec<BTreeMap<String, (usize, Ast, Vec<String>)>>,
+// }
 
-pub struct Parse<'a> {
-	ast: &'a Ast,
-	map: Map<'a>,
-}
+impl Parse {
+	fn reduce(&mut self, ast: &Ast, parent: usize) -> Result<Ast, String> {
+		match ast {
+			// Ast::Graph(points) => {
+			// 	let mut reduced_points = Vec::new();
+			// 	for point in points {
+			// 		reduced_points.push(self.reduce(point, parent + 1)?);
+			// 	}
 
-#[derive(Debug, Clone)]
-pub enum Number {
-	// ie how are the bytes formatted, what standard
-	Integer,
-	Decimal,
-	Boolean,
+			// 	Ok(Ast::Graph(reduced_points))
+			// }
+			// Ast::Key(label, point) => {
+			// 	let point = self.reduce(point, parent)?;
+			// 	self.envs[parent]
+			// 		.insert(label.clone(), (parent, point.clone(), vec![]));
+			// 	Ok(Ast::Key(label.clone(), Box::new(point)))
+			// }
 
-	// ints
-	I8,
-	I16,
-	I32,
-	I64,
-	I128,
+			// Ast::Ref(label) => {
+			// 	let source = self.lookup(label, parent)?;
+			// 	Ok(source.1.clone())
+			// }
+			// Ast::Op2(name, left, right) => {
+			// 	let left = self.reduce(left, parent)?;
+			// 	let right = self.reduce(right, parent)?;
+			// 	Ok(Ast::Op2(*name, Box::new(left), Box::new(right)))
+			// }
+			// Ast::Op1(name, operand) => {
+			// 	let operand = self.reduce(operand, parent)?;
+			// 	Ok(Ast::Op1(*name, Box::new(operand)))
+			// }
+			// Ast::Op0(name) => Ok(Ast::Op0(*name)),
+			// Ast::Space(sizes) => {
+			// 	let mut ss = vec![];
+			// 	for size in sizes {
+			// 		ss.push(self.reduce(size, parent)?)
+			// 	}
+			// 	Ok(Ast::Space(ss))
+			// }
 
-	// uints
-	U8,
-	U16,
-	U32,
-	U64,
-	U128,
-
-	// floats
-	F32,
-	F64,
-	F128,
-}
-#[derive(Debug, Clone)]
-pub enum Char {
-	C8, // UTF-8, but only chars of 8 bits like ascii
-	C16,
-	C32, // Full UTF-8
-}
-
-#[derive(Debug, Clone)]
-pub enum Typ {
-	Nothing,
-	Number(Number),
-	String(Char),
-
-	Graph(Vec<Typ>),
-}
-
-pub struct Graph {}
-
-pub fn reducer(ast: &Ast) -> Result<Graph, String> {
-	let parse = Parse {
-		ast,
-		map: Map {
-			parent: None,
-			this: BTreeMap::new(),
-		},
-	};
-	parse.program()
-}
-
-impl Parse<'_> {
-	fn program(&self) -> Result<Graph, String> {
-		match self.ast {
-			Ast::Graph(g) => Err("hello there from reducer".to_string()),
-			_ => Err("hello there from reducer".to_string()),
+			// Ast::Decimal(i) => Ok(Ast::Decimal(i.clone())),
+			// Ast::Integer(i) => Ok(Ast::Integer(i.clone())),
+			// Ast::String(i) => Ok(Ast::String(i.clone())),
+			// Ast::Clock(t, i) => Ok(Ast::Clock(t.clone(), i.clone())),
+			x => return Err(format!("No reduce match defined for {:?}", x)),
 		}
 	}
 }

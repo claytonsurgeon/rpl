@@ -9,9 +9,11 @@ pub enum Kind {
 	Operator,
 	//
 	Word,
+	Size,
 	//
 	String,
 	Number,
+	Clock,
 	//
 	Paren,
 	Squaren,
@@ -29,9 +31,9 @@ pub enum Name {
 	Pattern, // 	~			n/a					pattern
 	Signal, // 		?			make-signal 		gated-expression					(think !!), 	controls reativity explicitly
 	Sizer,  //		!			capacity				set capacity
-	Label,  // 		:			symbol				label expression
-	Or,     // 		|			bitwise OR			bitwise OR
-	And,    // 		&			bitwise AND			bitwise AND
+	// Label,  // 		:			symbol				label expression
+	Or,  // 			|			bitwise OR			bitwise OR
+	And, // 			&			bitwise AND			bitwise AND
 	Not, // 			`			bitwise negate		bitmask filter						regular bitwise negate, filter arrays with bitmask
 	Add, // 			+			magnitude			add
 	Sub, // 			-			negate				subtract
@@ -55,6 +57,10 @@ pub enum Name {
 	Arrow, //		->		   return				match return
 
 	Word,
+	Las,
+	Key,
+	Sym,
+	Ref,
 	Reserved,
 	//
 	String,
@@ -69,6 +75,48 @@ pub enum Name {
 	SquarenRT,
 	BracketLF,
 	BracketRT,
+	//
+	Second(Metric),
+	// ints
+	I8,
+	I16,
+	I32,
+	I64,
+	I128,
+
+	// uints
+	U8,
+	U16,
+	U32,
+	U64,
+	U128,
+
+	// floats
+	F32,
+	F64,
+	F128,
+
+	// char
+	C8, // UTF-8, but only chars of 8 bits like ascii
+	C16,
+	C32, // Full UTF-8
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Metric {
+	Tera,
+	Giga,
+	Mega,
+	Kilo,
+	Hecto,
+	Deca,
+	Base,
+	Deci,
+	Centi,
+	Milli,
+	Micro,
+	Nano,
+	Pico,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -104,12 +152,64 @@ pub fn tokenizer(input: &String) -> Result<Vec<Token>, String> {
 				(Kind::Stop, Name::Newline, Regex::new(r"^\n").unwrap()),
 				(Kind::Stop, Name::Comma, Regex::new(r"^,").unwrap()),
 
-				// Words
-				(Kind::Word, Name::Word, Regex::new(r"^[A-Za-z'_][A-Za-z0-9'_]*").unwrap()),
+
+				// reserved sizes
+				(Kind::Size, Name::I8, Regex::new(r"^i8\b").unwrap()),
+				(Kind::Size, Name::I16, Regex::new(r"^i16\b").unwrap()),
+				(Kind::Size, Name::I32, Regex::new(r"^i32\b").unwrap()),
+				(Kind::Size, Name::I64, Regex::new(r"^i64\b").unwrap()),
+				(Kind::Size, Name::I128, Regex::new(r"^i128\b").unwrap()),
+
+				(Kind::Size, Name::U8, Regex::new(r"^u8\b").unwrap()),
+				(Kind::Size, Name::U16, Regex::new(r"^u16\b").unwrap()),
+				(Kind::Size, Name::U32, Regex::new(r"^u32\b").unwrap()),
+				(Kind::Size, Name::U64, Regex::new(r"^u64\b").unwrap()),
+				(Kind::Size, Name::U128, Regex::new(r"^u128\b").unwrap()),
+
+				(Kind::Size, Name::C8, Regex::new(r"^c8\b").unwrap()),
+				(Kind::Size, Name::C16, Regex::new(r"^c16\b").unwrap()),
+				(Kind::Size, Name::C32, Regex::new(r"^c32\b").unwrap()),
+
+				(Kind::Size, Name::F32, Regex::new(r"^f32\b").unwrap()),
+				(Kind::Size, Name::F64, Regex::new(r"^f64\b").unwrap()),
+
 				// Reserved Words
 				(Kind::Word, Name::Reserved, Regex::new(r"^if\b").unwrap()),
 				(Kind::Word, Name::Reserved, Regex::new(r"^else\b").unwrap()),
 
+
+
+
+				(Kind::Operator, Name::Pattern, Regex::new(r"^::").unwrap()),
+				// // Symbol
+				// (Kind::Word, Name::Sym, Regex::new(r"^:[A-Za-z'_][A-Za-z0-9'_]*").unwrap()),
+				// (Kind::Word, Name::Sym, Regex::new(r"^:[$#|&=`><*/^+-]+").unwrap()),
+				// Label
+				(Kind::Word, Name::Key, Regex::new(r"^[A-Za-z'_][A-Za-z0-9'_]*:").unwrap()),
+				(Kind::Word, Name::Key, Regex::new(r"^[$#|&=`><*/^+-]+:").unwrap()),
+				// Label as such
+				(Kind::Word, Name::Las, Regex::new(r"^[A-Za-z'_][A-Za-z0-9'_]*;").unwrap()),
+				(Kind::Word, Name::Las, Regex::new(r"^[$#|&=`><*/^+-]+;").unwrap()),
+				//
+				// Words
+				(Kind::Word, Name::Ref, Regex::new(r"^[A-Za-z'_][A-Za-z0-9'_]*").unwrap()),
+
+
+				(Kind::Clock, Name::Second(Metric::Tera),  Regex::new(r"^[0-9]+Ts").unwrap()),
+				(Kind::Clock, Name::Second(Metric::Giga),  Regex::new(r"^[0-9]+Gs").unwrap()),
+				(Kind::Clock, Name::Second(Metric::Mega),  Regex::new(r"^[0-9]+Ms").unwrap()),
+				(Kind::Clock, Name::Second(Metric::Kilo),  Regex::new(r"^[0-9]+Ks").unwrap()),
+				(Kind::Clock, Name::Second(Metric::Hecto), Regex::new(r"^[0-9]+Hs").unwrap()),
+				(Kind::Clock, Name::Second(Metric::Deca),  Regex::new(r"^[0-9]+Ds").unwrap()),
+
+				(Kind::Clock, Name::Second(Metric::Base),  Regex::new(r"^[0-9]+s").unwrap()),
+
+				(Kind::Clock, Name::Second(Metric::Deci),  Regex::new(r"^[0-9]+ds").unwrap()),
+				(Kind::Clock, Name::Second(Metric::Centi), Regex::new(r"^[0-9]+cs").unwrap()),
+				(Kind::Clock, Name::Second(Metric::Milli), Regex::new(r"^[0-9]+ms").unwrap()),
+				(Kind::Clock, Name::Second(Metric::Micro), Regex::new(r"^[0-9]+[uμ]s").unwrap()),
+				(Kind::Clock, Name::Second(Metric::Nano),  Regex::new(r"^[0-9]+ns").unwrap()),
+				(Kind::Clock, Name::Second(Metric::Pico),  Regex::new(r"^[0-9]+ps").unwrap()),
 				// Numbers
 				(Kind::Number, Name::Decimal, Regex::new(r"^[0-9]+\.[0-9]*").unwrap()),
 				(Kind::Number, Name::Decimal, Regex::new(r"^[0-9]*\.[0-9]+").unwrap()),
@@ -117,14 +217,14 @@ pub fn tokenizer(input: &String) -> Result<Vec<Token>, String> {
 				(Kind::Number, Name::Boolean, Regex::new(r"^(false|true)\b").unwrap()),
 
 				// Operators
-				(Kind::Operator, Name::Semicolon, Regex::new(r"^;").unwrap()),
+				(Kind::Operator, Name::Pattern, Regex::new(r"^~").unwrap()),
 				//
 				(Kind::Operator, Name::Arrow, Regex::new(r"^(->|→)").unwrap()),
 				(Kind::Operator, Name::Bleed, Regex::new(r"^\.\.").unwrap()),
 				(Kind::Operator, Name::Select, Regex::new(r"^[.]").unwrap()),
 
 				(Kind::Operator, Name::Signal, Regex::new(r"^\?").unwrap()),
-				(Kind::Operator, Name::Label, Regex::new(r"^:").unwrap()),
+				// (Kind::Operator, Name::Label, Regex::new(r"^:").unwrap()),
 				(Kind::Operator, Name::Sizer, Regex::new(r"^!").unwrap()),
 				(Kind::Operator, Name::Shape, Regex::new(r"^$").unwrap()),
 				(Kind::Operator,  Name::Index, Regex::new(r"^#").unwrap()),

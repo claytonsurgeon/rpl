@@ -1,8 +1,47 @@
 
 
-// a: 12 ![i32]
+a: 12 ![i32]
 
-a: 12
+array: {1,2,3}
+j: array#[1]
+
+// a: b: 12
+// 10 + 20
+x: 3
+
+// Point: { x: y: 0, time: 100ns }
+Point: { x: 2 }
+
+myval: {
+	// a: 10
+	Point { x: a } + Point { x } + Point {}
+}
+
+// jeff: 10 + 9
+
+// myarray: { 1, 2, bob: 10, (jeff), tim: 20 }
+// // 
+// bob: { a: b: [10 i32] -> a + b }
+// rob: { c: d: 0 -> c - d }
+
+
+
+// a: 12, b: 13
+// c: a + b
+
+// a: 12
+
+
+// bob: {
+// 	a: b: 0 //[i32]
+// 	Point {x, y} :: Point {
+// 		x: a
+// 		y: b
+// 	}
+// -> a + b
+// }
+
+
 // a: [i32]! 12
 // a: signal ? [i32]! 23
 // a: signal ? 23 ![i32]
@@ -24,11 +63,7 @@ a: 12
 
 // signal ? boolean: `a & b | a & `b | `c
 
-// bob: {
-// 	a: 0
-// 	b: [i32]
-// -> a + b
-// }
+
 
 // + : {
 // 	a: 10

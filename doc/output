@@ -1,0 +1,12 @@
+
+
+
+the most obvious application for a reative programming language is spreadsheet software. However, the default behavior of RPL is to optimize away all non-variable points.
+
+this behavior is ideal for creating embedded state machines, but not ideal for someone using the language as an advanced calculator.
+
+The solution is not to prevent non-variable nodes from being collected, but to recognize that the node that users wish to observe are themselves variables. Any value that is visible for the user to modify is a variable and must be treated as an input into the system. This is important, because otherwise the graph would have to be recompiled every time a user modifies a cell in a spreadsheet. This would be untenably slow.
+
+That is all fine and dandy for simple point data, but what about whole graphs? If a user modifies the structure of the graph in some way, this will require recompilation.
+
+I think this is ok, because structural changes are less common than point changes. Also, we should be able to recompile parts of the graph without affecting the rest due to the static memory layout.

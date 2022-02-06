@@ -1,0 +1,11 @@
+
+
+only variable free graphs should be full expanded, because they will reduce down to constant values during compilation
+
+
+or should everything be expanded?
+unlike RPL does not actually call any external functions, it only provides signals to initiate execution
+
+if everything is completely expanded, then external sources won't actually be duplicated, just 
+
+what about large variable graphs of calculations that could otherwise be done once?

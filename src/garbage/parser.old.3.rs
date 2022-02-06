@@ -1,12 +1,5 @@
 // tokens -> ast-vector -> btree-graph
-/**
- * TODO:
- * --	change AST to an array, and make nested references indexes into this array
- * 	this negates the need for boxed values, which are a mess
- *
- *
- *
- */
+
 use super::tokenizer::{Kind, Name, Token};
 use std::cell::RefCell;
 
@@ -17,17 +10,13 @@ pub enum Ast {
 	Integer(String),
 	Decimal(String),
 	String(String),
-	Clock(String, Name),
-	Size(Name),
 
 	Graph(Vec<Ast>), // { .. }
 	Space(Vec<Ast>), // [ .. ]
 
 	Apply(Box<Ast>, Box<Ast>), //	graph { .. }
 
-	Key(String, Box<Ast>), // word: exp
-	// Ret(Box<Ast>),                 // -> exp
-	Ref(String),                   // word
+	Word(String),                  // graph
 	Op2(Name, Box<Ast>, Box<Ast>), // 1 + 2
 	Op1(Name, Box<Ast>),           // - 10
 	Op0(Name),                     // i32
@@ -49,129 +38,78 @@ pub fn parser(tokens: &Vec<Token>) -> Rast {
 	cursor.program()
 }
 
-fn strip_keys(ast: &Ast) -> Ast {
-	match ast {
-		Ast::Key(_, point) => *point.clone(),
-		x => x.clone(),
-	}
-}
-
-fn flatten_key(top: bool, point: &Ast, flat_points: &mut Vec<Ast>) {
-	match point {
-		Ast::Key(label, point) => {
-			flat_points
-				.push(Ast::Key(label.clone(), Box::new(strip_keys(&point))));
-
-			flatten_key(false, &point, flat_points);
-		}
-		Ast::Ref(label) => {
-			if top {
-				flat_points.push(Ast::Key(
-					label.clone(),
-					Box::new(Ast::Ref(label.clone())),
-				));
-			}
-		}
-		// Ast::Ret(point) => {
-		// 	flat_points.push(Ast::Ret(Box::new(strip_keys(&point))));
-
-		// 	flatten_key(false, &point, flat_points);
-		// }
-		_ => {
-			if top {
-				flat_points.push(point.clone())
-			}
-		}
-	}
-}
-fn flatten_keys(points: Vec<Ast>, flat_points: &mut Vec<Ast>) {
-	for point in points {
-		flatten_key(true, &point, flat_points)
-	}
-}
-
 impl Tokens<'_> {
 	fn program(&self) -> Rast {
-		Ok(Ast::Graph(self.points(false, &[])?))
+		Ok(Ast::Graph(self.points(&[])?))
 	}
 
-	fn points(&self, op2: bool, stops: &[Name]) -> Rasts {
+	fn points(&self, stops: &[Name]) -> Rasts {
 		let mut points: Vec<Ast> = vec![];
 		self.clear_stops();
 		while self.until(0, stops) {
-			if op2 {
-				points.push(self.return_exp()?);
-			} else {
-				if self.any(0, &[Name::Key, Name::Las, Name::Arrow]) {
-					points.push(self.point_exp()?);
-				} else {
-					points.push(self.pattern_exp()?);
-				}
-			}
+			points.push(self.return_exp()?);
 			self.clear_stops();
 		}
 
-		let mut flat_points = vec![];
-		flatten_keys(points, &mut flat_points);
-
-		Ok(flat_points)
+		Ok(points)
 	}
 
 	fn return_exp(&self) -> Rast {
-		let mut left = self.apply()?;
+		if self.is(0, Name::Arrow) {
+			return Ok(Ast::Op1(Name::Arrow, Box::new(self.pattern_exp()?)));
+		}
+		let mut left = self.pattern_exp()?;
 		if self.is(0, Name::Arrow) {
 			self.eat(Name::Arrow)?;
 			left = Ast::Op2(
 				Name::Arrow,
 				Box::new(left),
-				Box::new(self.sizer_exp()?),
+				Box::new(self.pattern_exp()?),
 			);
 		}
 
 		Ok(left)
 	}
 
-	fn point_exp(&self) -> Rast {
-		if self.is(0, Name::Las) {
-			let key = &self.eat(Name::Las)?.meta.text;
-			let label = key[..key.len() - 1].to_string().clone();
-
-			return Ok(Ast::Key(label, Box::new(Ast::Nothing)));
-		}
-		if self.is(0, Name::Arrow) {
-			let _ = self.eat(Name::Arrow)?;
-			// return Ok(Ast::Ret(Box::new(self.sizer_exp()?)));
-			return Ok(Ast::Key(
-				"<return>".to_string(),
-				Box::new(self.sizer_exp()?),
-			));
-		}
-		if self.is(0, Name::Key) {
-			let key = &self.eat(Name::Key)?.meta.text;
-			let label = key[..key.len() - 1].to_string().clone();
-
-			return Ok(Ast::Key(label, Box::new(self.point_exp()?)));
-		}
-		self.sizer_exp()
-	}
-
 	fn pattern_exp(&self) -> Rast {
-		let mut left = self.sizer_exp()?;
+		let mut left = self.label_exp()?;
 		while self.is(0, Name::Pattern) {
 			self.eat(Name::Pattern)?;
 			left = Ast::Op2(
 				Name::Pattern,
 				Box::new(left),
-				Box::new(self.sizer_exp()?),
+				Box::new(self.label_exp()?),
 			);
 		}
 
 		Ok(left)
 	}
 
+	// parsing labels as an expression is probably a mistake. There are just to many edge cases and unintuative behavior, may be better to treat labels and return-arrows as punctuation
+	// turn labels back into a tokenized item 'label:', and use as unary operator
+	fn label_exp(&self) -> Rast {
+		// should be made to work with parens around operator like (+): {..}
+		if self.any_of(0, &[Kind::Word, Kind::Operator])
+			&& self.is(1, Name::Label)
+		{
+			let label = self
+				.eats_of(&[Kind::Word, Kind::Operator])?
+				.meta
+				.text
+				.clone();
+			self.eat(Name::Label)?;
+			return Ok(Ast::Op2(
+				Name::Label,
+				Box::new(Ast::Word(label)),
+				Box::new(self.label_exp()?),
+			));
+		}
+		self.sizer_exp()
+	}
+
 	fn sizer_exp(&self) -> Rast {
 		let mut left = self.signal_exp()?;
-		if self.is(0, Name::Sizer) {
+		while self.is(0, Name::Sizer) {
 			self.eat(Name::Sizer)?;
 			left = Ast::Op2(
 				Name::Sizer,
@@ -182,6 +120,8 @@ impl Tokens<'_> {
 
 		Ok(left)
 	}
+
+	// I don't know if it's better to have signal be the same precendance as sizers or not
 
 	fn signal_exp(&self) -> Rast {
 		let mut left = self.join_exp()?;
@@ -199,7 +139,7 @@ impl Tokens<'_> {
 
 	fn join_exp(&self) -> Rast {
 		let mut left = self.shape_exp()?;
-		while self.is(0, Name::Bleed) {
+		while self.is(0, Name::Bleed) && !self.is(1, Name::Label) {
 			self.eat(Name::Bleed)?;
 			left = Ast::Op2(
 				Name::Bleed,
@@ -213,7 +153,7 @@ impl Tokens<'_> {
 
 	fn shape_exp(&self) -> Rast {
 		let mut left = self.or_exp()?;
-		while self.is(0, Name::Shape) {
+		while self.is(0, Name::Shape) && !self.is(1, Name::Label) {
 			self.eat(Name::Shape)?;
 			left = Ast::Op2(
 				Name::Shape,
@@ -227,7 +167,7 @@ impl Tokens<'_> {
 
 	fn or_exp(&self) -> Rast {
 		let mut left = self.and_exp()?;
-		while self.is(0, Name::Or) {
+		while self.is(0, Name::Or) && !self.is(1, Name::Label) {
 			self.eat(Name::Or)?;
 			left =
 				Ast::Op2(Name::Or, Box::new(left), Box::new(self.and_exp()?));
@@ -238,7 +178,7 @@ impl Tokens<'_> {
 
 	fn and_exp(&self) -> Rast {
 		let mut left = self.equality_exp()?;
-		while self.is(0, Name::And) {
+		while self.is(0, Name::And) && !self.is(1, Name::Label) {
 			self.eat(Name::And)?;
 			left = Ast::Op2(
 				Name::And,
@@ -252,7 +192,8 @@ impl Tokens<'_> {
 
 	fn equality_exp(&self) -> Rast {
 		let mut left = self.relation_exp()?;
-		while self.any(0, &[Name::Eq, Name::Ne]) {
+		while self.any(0, &[Name::Eq, Name::Ne]) && !self.is(1, Name::Label)
+		{
 			let t = self.eat_of(Kind::Operator)?;
 			left = Ast::Op2(
 				t.of.name,
@@ -266,7 +207,9 @@ impl Tokens<'_> {
 
 	fn relation_exp(&self) -> Rast {
 		let mut left = self.additive_exp()?;
-		while self.any(0, &[Name::Gt, Name::Ge, Name::Lt, Name::Le]) {
+		while self.any(0, &[Name::Gt, Name::Ge, Name::Lt, Name::Le])
+			&& !self.is(1, Name::Label)
+		{
 			let t = self.eat_of(Kind::Operator)?;
 			left = Ast::Op2(
 				t.of.name,
@@ -280,7 +223,9 @@ impl Tokens<'_> {
 
 	fn additive_exp(&self) -> Rast {
 		let mut left = self.multiplicative_exp()?;
-		while self.any(0, &[Name::Add, Name::Sub]) {
+		while self.any(0, &[Name::Add, Name::Sub])
+			&& !self.is(1, Name::Label)
+		{
 			let t = self.eat_of(Kind::Operator)?;
 			left = Ast::Op2(
 				t.of.name,
@@ -294,7 +239,9 @@ impl Tokens<'_> {
 
 	fn multiplicative_exp(&self) -> Rast {
 		let mut left = self.exponential_exp()?;
-		while self.any(0, &[Name::Mul, Name::Div]) {
+		while self.any(0, &[Name::Mul, Name::Div])
+			&& !self.is(1, Name::Label)
+		{
 			let t = self.eat_of(Kind::Operator).unwrap();
 			left = Ast::Op2(
 				t.of.name,
@@ -308,7 +255,7 @@ impl Tokens<'_> {
 
 	fn exponential_exp(&self) -> Rast {
 		let mut left = self.unary_exp()?;
-		while self.is(0, Name::Exp) {
+		while self.is(0, Name::Exp) && !self.is(1, Name::Label) {
 			self.eat(Name::Exp)?;
 			left = Ast::Op2(
 				Name::Exp,
@@ -352,10 +299,10 @@ impl Tokens<'_> {
 		Ok(left)
 	}
 	fn primary(&self) -> Rast {
-		if self.is(0, Name::Ref) {
-			self.ref_()
+		if self.is(0, Name::Word) {
+			self.word()
 		} else if self.of(0, Kind::Bracket) {
-			self.graph_exp(false)
+			self.graph_exp()
 		} else if self.of(0, Kind::Paren) {
 			self.paren_exp()
 		} else if self.of(0, Kind::Squaren) {
@@ -365,9 +312,9 @@ impl Tokens<'_> {
 		}
 	}
 
-	fn graph_exp(&self, op2: bool) -> Rast {
+	fn graph_exp(&self) -> Rast {
 		self.eat(Name::BracketLF)?;
-		let points = self.points(op2, &[Name::BracketRT])?;
+		let points = self.points(&[Name::BracketRT])?;
 		self.eat(Name::BracketRT)?;
 		Ok(Ast::Graph(points))
 	}
@@ -381,23 +328,19 @@ impl Tokens<'_> {
 
 	fn space_exp(&self) -> Rast {
 		self.eat(Name::SquarenLF)?;
-		let points = self.points(false, &[Name::SquarenRT])?;
+		let points = self.points(&[Name::SquarenRT])?;
 		self.eat(Name::SquarenRT)?;
 		Ok(Ast::Space(points))
 	}
 
-	fn ref_(&self) -> Rast {
-		let t = self.eat(Name::Ref)?;
-		Ok(Ast::Ref(t.meta.text.clone()))
+	fn word(&self) -> Rast {
+		let t = self.eat(Name::Word)?;
+		Ok(Ast::Word(t.meta.text.clone()))
 	}
 
 	fn literal(&self) -> Rast {
 		if self.of(0, Kind::String) {
 			self.string()
-		} else if self.of(0, Kind::Clock) {
-			self.clock()
-		} else if self.of(0, Kind::Size) {
-			self.size()
 		} else {
 			self.number()
 		}
@@ -411,16 +354,6 @@ impl Tokens<'_> {
 			_ => panic!(),
 		};
 		Ok(ast)
-	}
-
-	fn clock(&self) -> Rast {
-		let t = self.eat_of(Kind::Clock)?;
-		Ok(Ast::Clock(t.meta.text.clone(), t.of.name))
-	}
-
-	fn size(&self) -> Rast {
-		let t = self.eat_of(Kind::Size)?;
-		Ok(Ast::Size(t.of.name))
 	}
 
 	fn string(&self) -> Rast {
@@ -483,10 +416,10 @@ impl Tokens<'_> {
 		}
 	}
 
-	fn _eats_of(&self, kinds: &[Kind]) -> Result<&Token, String> {
+	fn eats_of(&self, kinds: &[Kind]) -> Result<&Token, String> {
 		match self.get(0) {
 			Some(t) => {
-				let ret = if self._any_of(0, kinds) {
+				let ret = if self.any_of(0, kinds) {
 					Ok(t)
 				} else {
 					Err(format!(
@@ -536,7 +469,7 @@ impl Tokens<'_> {
 		}
 		false
 	}
-	fn _any_of(&self, offset: usize, kinds: &[Kind]) -> bool {
+	fn any_of(&self, offset: usize, kinds: &[Kind]) -> bool {
 		for kind in kinds {
 			if self.of(offset, *kind) {
 				return true;

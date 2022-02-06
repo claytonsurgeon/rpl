@@ -75,44 +75,36 @@ Graph(
                         Add,
                         Op2(
                             Add,
-                            Apply(
-                                Ref(
-                                    "Point",
-                                ),
-                                Graph(
-                                    [
-                                        Key(
-                                            "x",
-                                            Ref(
-                                                "a",
-                                            ),
+                            Graph(
+                                [
+                                    Key(
+                                        "x",
+                                        Ref(
+                                            "a",
                                         ),
-                                    ],
-                                ),
-                            ),
-                            Apply(
-                                Ref(
-                                    "Point",
-                                ),
-                                Graph(
-                                    [
-                                        Key(
-                                            "x",
-                                            Ref(
-                                                "x",
-                                            ),
-                                        ),
-                                    ],
-                                ),
-                            ),
-                        ),
-                        Apply(
-                            Ref(
-                                "Point",
+                                    ),
+                                ],
                             ),
                             Graph(
-                                [],
+                                [
+                                    Key(
+                                        "x",
+                                        Ref(
+                                            "x",
+                                        ),
+                                    ),
+                                ],
                             ),
+                        ),
+                        Graph(
+                            [
+                                Key(
+                                    "x",
+                                    Integer(
+                                        "2",
+                                    ),
+                                ),
+                            ],
                         ),
                     ),
                 ],

@@ -1,0 +1,11 @@
+
+
+
+the arenas of memory defined for each point cannot be exceeded, thus, if a write operation to a point space does exceed the memory area the write head is directed to continue writing from the begining of the arena. That is, the default behavoir is to wrap around as one would expect of a circular buffer. When this occurs, the point's status flag indicates that an overflow/wrap has occurred. This is similar to the behavoir of integers in a CPU
+
+
+the status flags of a point can be accessed with the flag operator @
+
+point@flag
+
+or simple @flag when inside a graph

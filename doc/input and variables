@@ -1,0 +1,83 @@
+
+
+
+an input is a static memory location that can be written too
+a signal triggers a re-evaluation
+a variable is combination of an input and a signal
+
+clock is a signal that cycles between 1 and 0 at a specified rate
+time is a an input that contains some date/time information
+
+by combining a clock signal and a time input, you can have a variable that returns the current number of seconds, updated every second
+
+the signal is bidirection, meaning that the time should accept a clock signal so it knows how often to poll for new data
+that same signal should be used by the consumer of the time data to initiate re-evaluation
+
+
+
+
+flags and time
+
+
+
+
+it would be better to treat signals as a type of number, because clocks should be regular. Complex signals can be made by 'OR'ing simple signals together
+
+Years: 1000y
+Days: 1000d
+Hours: 1000h
+Minutes: 1000m
+Seconds: 1000s 
+
+
+miliseconds: 1000ms
+nanoseconds: 1000ns
+
+
+mycount: counter { clock: 60ms }
+
+
+0x1000	hex
+16x100	hex
+
+1x00000  unary
+2x10101  binary
+8x100	octal
+10x100	decimal
+16x100	hex
+64x3A4K  base64
+
+
+
+
+64x3A4K![u256]
+
+10ns		= 10 nanosecond clock
+100Gy		= 100 gigayear clock
+40s			= 40 second clock
+
+three_hour: 3 * 60 * 60 * 10s
+
+
+
+Y		yotta	Y	10^24	1000000000000000000000000	septillion	quadrillion	1991	Greek	eight[nb 2]
+Z		zetta	Z	10^21	1000000000000000000000	sextillion	trilliard	1991	Latin	seven[nb 2]
+E		exa	E	10^18	1000000000000000000	quintillion	trillion	1975	Greek	six
+P		peta	P	10^15	1000000000000000	quadrillion	billiard	1975	Greek	five[nb 2]
+T		tera	T	10^12	1000000000000	trillion	billion	1960	Greek	four,[nb 2] monster
+G		giga	G	10^9	1000000000	billion	milliard	1960	Greek	giant
+M		mega	M	10^6	1000000	million	1873	Greek	great
+K		kilo	k	10^3	1000	thousand	1795	Greek	thousand
+H		hecto	h	10^2	100	hundred	1795	Greek	hundred
+D		deca	da	10^1	10	ten	1795	Greek	ten
+		10^0	1	one	-
+d		deci	d	10^-1	0.1	tenth	1795	Latin	ten
+c		centi	c	10^-2	0.01	hundredth	1795	Latin	hundred
+m		milli	m	10^-3	0.001	thousandth	1795	Latin	thousand
+u		micro	μ	10^-6	0.000001	millionth	1873	Greek	small
+n		nano	n	10^-9	0.000000001	billionth	milliardth	1960	Greek	dwarf
+p		pico	p	10^-12	0.000000000001	trillionth	billionth	1960	Spanish	peak, a little bit
+f		femto	f	10^-15	0.000000000000001	quadrillionth	billiardth	1964	Danish	fifteen, Fermi[nb 3]
+a		atto	a	10^-18	0.000000000000000001	quintillionth	trillionth	1964	Danish	eighteen
+z		zepto	z	10^-21	0.000000000000000000001	sextillionth	trilliardth	1991	Latin	seven[nb 2]
+y		yocto	y	10^-24	0.000000000000000000000001	septillionth	quadrillionth	1991	Greek	eight[nb 2

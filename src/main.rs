@@ -2,7 +2,7 @@ use std::env;
 use std::fs;
 
 pub mod compiler;
-use compiler::{normalize, parser, reducer, tokenizer};
+use compiler::{expander, parser, reducer, tokenizer, typer};
 use parser::Ast;
 use tokenizer::Token;
 
@@ -83,12 +83,17 @@ fn compile(source: &String) -> Result<String, String> {
 
     //
     //
-    dbg!();
-    let normal = normalize::normalize(&parse)?;
-    dbg!(&normal);
-    let normal_path = &mut source.clone();
-    normal_path.push_str(&".normal".to_string());
-    write_file(normal_path, &ast_string(&normal));
+    let (expand, map) = expander::expander(&parse)?;
+    let expand_path = &mut source.clone();
+    expand_path.push_str(&".expand".to_string());
+    write_file(expand_path, &ast_string(&expand));
+
+    //
+    //
+    let (typed, map) = typer::typer(&expand, map)?;
+    let typed_path = &mut source.clone();
+    typed_path.push_str(&".typed".to_string());
+    write_file(typed_path, &format!("{:#?}", &typed));
 
     Ok("no errors".to_string())
 }
