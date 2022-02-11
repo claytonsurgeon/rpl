@@ -1,36 +1,72 @@
+// m: [100 f32]! {0}
+
+// j: m + 2
 
 
-a: 12 ![i32]
+x: 10 + 20
 
-array: {1,2,3}
-j: array#[1]
+
+// z: {
+// 	10
+// }
+
+// q: a: {
+// 	x: 2
+// 	b: {
+// 		d: 2
+// 		e: 5
+// 	}
+// 	c: {
+// 		g: 7
+// 		h: 9
+// 	}
+// }
+
+// k: a.b.d
+
+// k: a.b
+// k: a.b.c
+
+// a: 12 ![i32]
+
+// array: {1,2,3}
+// j: array#[1]
 
 // a: b: 12
 // 10 + 20
-x: 3
+// x: 3
 
-// Point: { x: y: 0, time: 100ns }
-Point: { x: 2 }
+// // Point: { x: y: 0, time: 100ns }
+// Point: { x: 2 }
 
-myval: {
-	// a: 10
-	Point { x: a } + Point { x } + Point {}
-}
+// myval: {
+// 	// a: 10
+// 	Point { x: a } + Point { x } + Point {}
+// }
 
 // jeff: 10 + 9
 
 // myarray: { 1, 2, bob: 10, (jeff), tim: 20 }
-// // 
+// //
 // bob: { a: b: [10 i32] -> a + b }
 // rob: { c: d: 0 -> c - d }
 
+// quad: {
+// 	a: b: c: [f32]
+// 	disc: b^2 - 4*a*c
+// 	root: Sqrt(disc)
+// 	deno: 2*a
 
+// 	neg: (-b - rooted) / deno
+// 	pos: (-b + rooted) / deno
+// }
+
+// c: count(100ms)
 
 // a: 12, b: 13
 // c: a + b
 
 // a: 12
-
 
 // bob: {
 // 	a: b: 0 //[i32]
@@ -40,7 +76,6 @@ myval: {
 // 	}
 // -> a + b
 // }
-
 
 // a: [i32]! 12
 // a: signal ? [i32]! 23
@@ -62,8 +97,6 @@ myval: {
 // symbols: { :a, :b, :c }
 
 // signal ? boolean: `a & b | a & `b | `c
-
-
 
 // + : {
 // 	a: 10

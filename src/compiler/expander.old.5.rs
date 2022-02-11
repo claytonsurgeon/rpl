@@ -1,21 +1,36 @@
-// create Btree of ast nodes
-// create Btree of typ nodes
+// expander should use a vec of Ast instead of a BTree, then
+// look up is a simple linear scan. lookups can be ordinal as well
+// ast::graphs are just vecs, so they can be used for this purpose
 
-/**
- * add unnmaed points to btree, use their index as their key
- * for example: 6 -> "6"
- *
- */
+/*
+references are expanded
+arrays of dependants established
+
+map element maps string name of point to point's ast and a vector of the string name of points depending on that point
+
+first expandation expands ast and create deps lists
+then every operation is type/space annotated and the deps list swaps string names for hard indexes
+
+datatree is just the ast with space for storing computed results
+
+
+
+map references
+perform substitutions
+determine size/type
+
+
+
+
+*/
 // #![allow(dead_code)]
 // #![allow(unused_variables)]
+
 use super::parser::{Ast, EID};
 use super::tokenizer::Name;
 use std::collections::BTreeMap;
 
 pub type Maps = Vec<BTreeMap<String, Ast>>;
-pub type Typs = Vec<BTreeMap<String, Typ>>;
-
-pub enum Typ {}
 
 #[derive(Debug, Clone)]
 pub struct Parse {
@@ -170,11 +185,7 @@ impl Parse {
 					let label = get_label(&right)?;
 					Ok(Ast::Ref(eid, label))
 				}
-				_ => {
-					let left = self.map(left, parent_eid)?;
-					let right = self.map(right, parent_eid)?;
-					Ok(Ast::Op2(*name, Box::new(left), Box::new(right)))
-				}
+				_ => Ok(Ast::Nothing),
 			},
 			Ast::Op1(name, operand) => Ok(Ast::Nothing),
 			Ast::Op0(name) => Ok(Ast::Nothing),

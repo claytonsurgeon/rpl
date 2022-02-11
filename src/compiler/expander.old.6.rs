@@ -5,6 +5,9 @@
  * add unnmaed points to btree, use their index as their key
  * for example: 6 -> "6"
  *
+ * btree nodes have indexes, use that instead of a vector of trees
+ * this will be easier to work with later when recompiling a graph and
+ * trying to merge changes
  */
 // #![allow(dead_code)]
 // #![allow(unused_variables)]
@@ -170,11 +173,7 @@ impl Parse {
 					let label = get_label(&right)?;
 					Ok(Ast::Ref(eid, label))
 				}
-				_ => {
-					let left = self.map(left, parent_eid)?;
-					let right = self.map(right, parent_eid)?;
-					Ok(Ast::Op2(*name, Box::new(left), Box::new(right)))
-				}
+				_ => Ok(Ast::Nothing),
 			},
 			Ast::Op1(name, operand) => Ok(Ast::Nothing),
 			Ast::Op0(name) => Ok(Ast::Nothing),

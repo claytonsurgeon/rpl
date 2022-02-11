@@ -1,0 +1,17 @@
+[
+    {},
+    {
+        "<parent>": Parent(
+            0,
+        ),
+        "x": Op2(
+            Add,
+            Integer(
+                "10",
+            ),
+            Integer(
+                "20",
+            ),
+        ),
+    },
+]

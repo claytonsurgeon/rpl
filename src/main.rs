@@ -1,8 +1,10 @@
+#![allow(unused_variables)]
+
 use std::env;
 use std::fs;
 
 pub mod compiler;
-use compiler::{expander, parser, reducer, tokenizer, typer};
+use compiler::{expander, parser, reducer, tokenizer};
 use parser::Ast;
 use tokenizer::Token;
 
@@ -83,17 +85,26 @@ fn compile(source: &String) -> Result<String, String> {
 
     //
     //
-    let (expand, map) = expander::expander(&parse)?;
+    let (expand, maps) = expander::expander(&parse)?;
     let expand_path = &mut source.clone();
     expand_path.push_str(&".expand".to_string());
-    write_file(expand_path, &ast_string(&expand));
+    write_file(expand_path, &format!("{:#?}", &expand));
+
+    let maps_path = &mut source.clone();
+    maps_path.push_str(&".maps".to_string());
+    write_file(maps_path, &format!("{:#?}", &maps));
 
     //
     //
-    let (typed, map) = typer::typer(&expand, map)?;
-    let typed_path = &mut source.clone();
-    typed_path.push_str(&".typed".to_string());
-    write_file(typed_path, &format!("{:#?}", &typed));
+    // let (typed, map) = typer::typer(&expand, map)?;
+    // let typed_path = &mut source.clone();
+    // typed_path.push_str(&".typed".to_string());
+    // write_file(typed_path, &format!("{:#?}", &typed));
+
+    let _ = reducer::reducer(&expand, &maps)?;
+    // let typed_path = &mut source.clone();
+    // typed_path.push_str(&".typed".to_string());
+    // write_file(typed_path, &format!("{:#?}", &typed));
 
     Ok("no errors".to_string())
 }

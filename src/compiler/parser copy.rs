@@ -11,9 +11,6 @@ use super::tokenizer::{Kind, Name, Token};
 use std::cell::RefCell;
 
 pub type EID = usize;
-
-pub type IDX = usize; // ast node position in vector
-
 #[derive(Debug, Clone)]
 pub enum Ast {
 	Nothing,
@@ -37,7 +34,6 @@ pub enum Ast {
 	Op1(Name, Box<Ast>),           // - 10
 	Op0(Name),                     // i32
 }
-
 pub struct Tokens<'a> {
 	cursor: RefCell<usize>,
 	tokens: &'a Vec<Token>,
@@ -158,7 +154,6 @@ impl Tokens<'_> {
 
 			return Ok(Ast::Key(label, Box::new(self.point_exp()?)));
 		}
-		// return Ok(Ast::Key("0"))
 		self.sizer_exp()
 	}
 
